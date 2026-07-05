@@ -27,6 +27,14 @@
             --safe-bottom: env(safe-area-inset-bottom, 10px);
             --sidebar-bg: #f5f6f7;
             --nav-blur: rgba(242, 242, 247, 0.85);
+            --reply-preview-bg: rgba(0,0,0,0.04);
+            --reply-preview-border: rgba(0,0,0,0.1);
+            --reply-block-bg: rgba(0,0,0,0.03);
+        }
+        [data-ds-dark-theme] {
+            --reply-preview-bg: rgba(255,255,255,0.06);
+            --reply-preview-border: rgba(255,255,255,0.1);
+            --reply-block-bg: rgba(255,255,255,0.04);
         }
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Segoe UI", Roboto, sans-serif;
@@ -238,11 +246,37 @@
             padding: 16px 16px 8px;
             background: #f8f8fc;
             background-image: radial-gradient(circle at 20% 30%, rgba(10,132,255,0.02) 0%, transparent 50%);
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
         }
         .messages-list {
             display: flex;
             flex-direction: column;
-            gap: 4px;
+            gap: 8px;
+        }
+        .message-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            position: relative;
+        }
+        .message-wrapper.other {
+            align-items: flex-start;
+        }
+        .message-wrapper.system {
+            align-items: center;
+        }
+        .message-wrapper.system .message {
+            background: rgba(0,0,0,0.04);
+            color: var(--text-secondary);
+            font-size: 13px;
+            padding: 6px 16px;
+            border-radius: 30px;
+            max-width: 90%;
+            backdrop-filter: blur(4px);
+            border: 0.5px solid rgba(0,0,0,0.02);
         }
         .message {
             max-width: 76%;
@@ -256,6 +290,11 @@
             animation: msg-pop 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) both;
             margin-bottom: 2px;
             box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            touch-action: manipulation;
         }
         @keyframes msg-pop {
             0% { opacity: 0; transform: scale(0.92) translateY(8px); }
@@ -271,27 +310,87 @@
             background: var(--bubble-other);
             color: var(--text-primary);
         }
-        .message.system {
-            align-self: center;
-            background: rgba(0,0,0,0.04);
+        .reply-block {
+            max-width: 76%;
+            background: var(--reply-block-bg);
+            border-left: 3px solid var(--bubble-other);
+            border-radius: 4px 4px 0 0;
+            padding: 6px 10px 4px 8px;
+            margin-top: 2px;
+            font-size: 14px;
             color: var(--text-secondary);
-            font-size: 13px;
-            padding: 6px 16px;
-            border-radius: 30px;
-            max-width: 90%;
-            backdrop-filter: blur(4px);
-            border: 0.5px solid rgba(0,0,0,0.02);
+            line-height: 1.4;
+            word-break: break-word;
+            align-self: flex-end;
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            cursor: pointer;
+            transition: background 0.1s;
+        }
+        .reply-block:hover {
+            background: rgba(0,0,0,0.06);
+        }
+        .message-wrapper.other .reply-block {
+            align-self: flex-start;
+        }
+        .message-wrapper.self .reply-block {
+            align-self: flex-end;
+        }
+        .reply-preview {
+            display: none;
+            align-items: center;
+            padding: 6px 16px 4px 16px;
+            background: var(--reply-preview-bg);
+            border-top: 1px solid var(--reply-preview-border);
+            font-size: 14px;
+            color: var(--text-secondary);
+            gap: 10px;
+            flex-shrink: 0;
+            min-height: 32px;
+            border-radius: 0 0 var(--radius-input) var(--radius-input);
+        }
+        .reply-preview.active {
+            display: flex;
+        }
+        .reply-preview .preview-text {
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        .reply-preview .preview-close {
+            cursor: pointer;
+            font-size: 18px;
+            color: var(--text-secondary);
+            background: none;
+            border: none;
+            padding: 0 4px;
+            line-height: 1;
+        }
+        .reply-preview .preview-close:hover {
+            color: var(--text-primary);
         }
         .input-area {
             display: flex;
             align-items: center;
-            padding: 10px 16px calc(10px + var(--safe-bottom));
+            padding: 6px 16px calc(6px + var(--safe-bottom));
             background: rgba(248,248,252,0.92);
             backdrop-filter: saturate(180%) blur(20px);
             -webkit-backdrop-filter: saturate(180%) blur(20px);
             border-top: 0.5px solid rgba(0,0,0,0.06);
             gap: 8px;
             flex-shrink: 0;
+            flex-direction: column;
+        }
+        .input-row {
+            display: flex;
+            align-items: center;
+            width: 100%;
+            gap: 8px;
         }
         .input-area #msgInput {
             flex: 1;
@@ -304,6 +403,10 @@
             min-height: 40px;
             max-height: 120px;
             transition: background 0.2s, box-shadow 0.2s;
+            user-select: text;
+            -webkit-user-select: text;
+            -moz-user-select: text;
+            -ms-user-select: text;
         }
         .input-area #msgInput:focus {
             background: white;
@@ -418,6 +521,11 @@
                 font-size: 15px;
                 padding: 8px 12px;
             }
+            .reply-block {
+                max-width: 85%;
+                font-size: 13px;
+                padding: 4px 8px 2px 6px;
+            }
             .input-area #msgInput {
                 font-size: 15px;
                 padding: 8px 14px;
@@ -481,16 +589,22 @@
                     <button class="btn-icon" id="headerCopyBtn">复制</button>
                 </div>
             </header>
-            <div class="messages-container" id="messagesContainer">
+            <div class="messages-container" id="messagesContainer" oncontextmenu="return false;">
                 <div id="messages" class="messages-list"></div>
             </div>
+            <div class="reply-preview" id="replyPreview">
+                <span class="preview-text" id="replyPreviewText">引用内容</span>
+                <button class="preview-close" id="replyPreviewClose">✕</button>
+            </div>
             <footer class="input-area">
-                <input type="text" id="msgInput" placeholder="信息" autocomplete="off">
-                <button id="sendBtn" disabled>
-                    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M2,21 L23,12 L2,3 L2,10 L16,12 L2,14 Z" />
-                    </svg>
-                </button>
+                <div class="input-row">
+                    <input type="text" id="msgInput" placeholder="信息" autocomplete="off">
+                    <button id="sendBtn" disabled>
+                        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M2,21 L23,12 L2,3 L2,10 L16,12 L2,14 Z" />
+                        </svg>
+                    </button>
+                </div>
             </footer>
         </main>
         <button id="menuToggleFixed" class="menu-toggle-fixed" aria-label="切换侧边栏">☰</button>
@@ -518,6 +632,13 @@
             let isCreator = false;
             let isPaired = false;
             let isWaitingStarted = false;
+            let replyTo = null;
+            let replyToId = null;
+            let longPressTimer = null;
+            let longPressTriggered = false;
+            let touchStartX = 0;
+            let touchStartY = 0;
+            const messageSideMap = {};
 
             const sidebar = document.getElementById('sidebar');
             const overlay = document.getElementById('sidebarOverlay');
@@ -535,6 +656,9 @@
             const messagesDiv = document.getElementById('messages');
             const msgInput = document.getElementById('msgInput');
             const sendBtn = document.getElementById('sendBtn');
+            const replyPreview = document.getElementById('replyPreview');
+            const replyPreviewText = document.getElementById('replyPreviewText');
+            const replyPreviewClose = document.getElementById('replyPreviewClose');
 
             function isMobile() {
                 return window.innerWidth <= 768;
@@ -629,11 +753,125 @@
                 }
             }
 
-            function appendMessage(who, text, side) {
-                const div = document.createElement('div');
-                div.className = 'message ' + side;
-                div.textContent = text;
-                messagesDiv.appendChild(div);
+            function truncateText(text, maxLen) {
+                if (text.length <= maxLen) return text;
+                return text.slice(0, maxLen) + '...';
+            }
+
+            function generateMessageId() {
+                return Date.now().toString(36) + '-' + Math.random().toString(36).substr(2, 5);
+            }
+
+            function scrollToMessage(msgId) {
+                const target = document.querySelector('[data-msg-id="' + msgId + '"]');
+                if (target) {
+                    const container = document.getElementById('messagesContainer');
+                    const offset = target.offsetTop - container.offsetTop - 60;
+                    container.scrollTo({
+                        top: offset,
+                        behavior: 'smooth'
+                    });
+                    target.style.transition = 'background 0.3s';
+                    target.style.background = 'rgba(10,132,255,0.15)';
+                    setTimeout(() => {
+                        target.style.background = '';
+                    }, 1500);
+                }
+            }
+
+            function setupLongPress(element, callback) {
+                element.addEventListener('touchstart', function(e) {
+                    const touch = e.touches[0];
+                    touchStartX = touch.clientX;
+                    touchStartY = touch.clientY;
+                    longPressTriggered = false;
+                    longPressTimer = setTimeout(function() {
+                        longPressTriggered = true;
+                        callback(e);
+                    }, 500);
+                }, { passive: true });
+
+                element.addEventListener('touchmove', function(e) {
+                    const touch = e.touches[0];
+                    const dx = touch.clientX - touchStartX;
+                    const dy = touch.clientY - touchStartY;
+                    if (Math.sqrt(dx*dx + dy*dy) > 10) {
+                        clearTimeout(longPressTimer);
+                        longPressTimer = null;
+                    }
+                }, { passive: true });
+
+                element.addEventListener('touchend', function(e) {
+                    clearTimeout(longPressTimer);
+                    longPressTimer = null;
+                }, { passive: true });
+
+                element.addEventListener('touchcancel', function(e) {
+                    clearTimeout(longPressTimer);
+                    longPressTimer = null;
+                }, { passive: true });
+
+                element.addEventListener('mousedown', function(e) {
+                    longPressTriggered = false;
+                    longPressTimer = setTimeout(function() {
+                        longPressTriggered = true;
+                        callback(e);
+                    }, 500);
+                });
+
+                element.addEventListener('mouseup', function(e) {
+                    clearTimeout(longPressTimer);
+                    longPressTimer = null;
+                });
+
+                element.addEventListener('mouseleave', function(e) {
+                    clearTimeout(longPressTimer);
+                    longPressTimer = null;
+                });
+            }
+
+            function appendMessage(who, msgObj, side) {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'message-wrapper ' + side;
+                wrapper.setAttribute('data-msg-id', msgObj.id);
+                if (side !== 'system') {
+                    messageSideMap[msgObj.id] = side;
+                }
+
+                const bubble = document.createElement('div');
+                bubble.className = 'message ' + side;
+                bubble.textContent = msgObj.text;
+                wrapper.appendChild(bubble);
+
+                if (msgObj.replyId) {
+                    const replyBlock = document.createElement('div');
+                    replyBlock.className = 'reply-block';
+                    replyBlock.textContent = truncateText(msgObj.reply, 80);
+                    replyBlock.setAttribute('data-reply-id', msgObj.replyId);
+                    const replySide = messageSideMap[msgObj.replyId] || 'other';
+                    replyBlock.style.borderLeftColor = replySide === 'self' ? 'var(--bubble-self)' : 'var(--bubble-other)';
+                    replyBlock.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        const replyId = this.getAttribute('data-reply-id');
+                        if (replyId) {
+                            scrollToMessage(replyId);
+                        }
+                    });
+                    wrapper.appendChild(replyBlock);
+                }
+
+                if (side !== 'system') {
+                    setupLongPress(bubble, function(e) {
+                        e.preventDefault();
+                        replyTo = msgObj.text;
+                        replyToId = msgObj.id;
+                        replyPreviewText.textContent = truncateText(msgObj.text, 80);
+                        replyPreview.classList.add('active');
+                        msgInput.focus();
+                    });
+                }
+
+                messagesDiv.appendChild(wrapper);
                 messagesDiv.scrollTop = messagesDiv.scrollHeight;
             }
 
@@ -752,20 +990,31 @@
                 conn = connection;
                 conn.on('data', (data) => {
                     if (typeof data === 'string') {
-                        appendMessage('对方', data, 'other');
+                        try {
+                            const parsed = JSON.parse(data);
+                            if (parsed.type === 'text') {
+                                appendMessage('对方', parsed, 'other');
+                            } else if (parsed.type === 'reply') {
+                                appendMessage('对方', parsed, 'other');
+                            } else {
+                                appendMessage('对方', { id: generateMessageId(), text: data }, 'other');
+                            }
+                        } catch (e) {
+                            appendMessage('对方', { id: generateMessageId(), text: data }, 'other');
+                        }
                     }
                 });
                 conn.on('close', () => {
                     updateStatus('已断开', 'offline');
                     isPaired = false;
                     sendBtn.disabled = true;
-                    appendMessage('系统', '对方已断开连接', 'system');
+                    appendMessage('系统', { id: generateMessageId(), text: '对方已断开连接' }, 'system');
                     resetUI();
                 });
                 isPaired = true;
                 updateStatus('已配对', 'online');
                 sendBtn.disabled = false;
-                appendMessage('系统', '连接成功，开始聊天吧', 'system');
+                appendMessage('系统', { id: generateMessageId(), text: '连接成功，开始聊天吧' }, 'system');
                 if (isMobile()) {
                     sidebar.classList.add('closed');
                     overlay.classList.remove('active');
@@ -775,9 +1024,29 @@
             function sendText() {
                 const text = msgInput.value.trim();
                 if (!text || !conn || !conn.open) return;
-                conn.send(text);
-                appendMessage('我', text, 'self');
+                const msgId = generateMessageId();
+                let msgObj;
+                if (replyTo && replyToId) {
+                    msgObj = {
+                        type: 'reply',
+                        id: msgId,
+                        text: text,
+                        reply: replyTo,
+                        replyId: replyToId
+                    };
+                } else {
+                    msgObj = {
+                        type: 'text',
+                        id: msgId,
+                        text: text
+                    };
+                }
+                conn.send(JSON.stringify(msgObj));
+                appendMessage('我', msgObj, 'self');
                 msgInput.value = '';
+                replyTo = null;
+                replyToId = null;
+                replyPreview.classList.remove('active');
                 msgInput.focus();
             }
 
@@ -796,6 +1065,10 @@
                 if (peer) { peer.destroy(); peer = null; }
                 conn = null;
                 sendBtn.disabled = true;
+                replyTo = null;
+                replyToId = null;
+                replyPreview.classList.remove('active');
+                Object.keys(messageSideMap).forEach(key => delete messageSideMap[key]);
                 if (isMobile()) {
                     sidebar.classList.add('closed');
                     overlay.classList.remove('active');
@@ -839,6 +1112,12 @@
                 document.body.removeChild(input);
                 alert('已复制房间码');
             }
+
+            replyPreviewClose.addEventListener('click', function() {
+                replyTo = null;
+                replyToId = null;
+                replyPreview.classList.remove('active');
+            });
 
             sidebarCreateBtn.addEventListener('click', startAsCreator);
             sidebarJoinBtn.addEventListener('click', startAsJoiner);
