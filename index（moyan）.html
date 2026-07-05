@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>MoYan</title>
+    <script src="https://unpkg.com/peerjs@1.5.1/dist/peerjs.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+        :root {
+            --bg-primary: #f2f2f7;
+            --bg-chat: #ffffff;
+            --bubble-self: #0a84ff;
+            --bubble-other: #e9e9ed;
+            --text-primary: #1c1c1e;
+            --text-secondary: #8e8e93;
+            --border-light: rgba(0,0,0,0.08);
+            --sidebar-width: 260px;
+            --radius-bubble: 18px;
+            --radius-input: 28px;
+            --safe-top: env(safe-area-inset-top, 20px);
+            --safe-bottom: env(safe-area-inset-bottom, 10px);
+            --sidebar-bg: #f5f6f7;
+            --nav-blur: rgba(242, 242, 247, 0.85);
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Segoe UI", Roboto, sans-serif;
+            background: var(--bg-primary);
+            height: 100vh;
+            height: 100dvh;
+            overflow: hidden;
+            color: var(--text-primary);
+        }
+        #app {
+            display: flex;
+            height: 100%;
+            width: 100%;
+            position: relative;
+        }
+
+        .sidebar {
+            width: var(--sidebar-width);
+            background: var(--sidebar-bg);
+            border-right: 1px solid var(--border-light);
+            flex-shrink: 0;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            padding: 12px 14px;
+            position: relative;
+            z-index: 10;
+            transition: transform 0.3s ease;
+        }
+        .sidebar-inner {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            gap: 16px;
+        }
+        .sidebar-header {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--bubble-self);
+            letter-spacing: -0.5px;
+            padding: 4px 0 8px;
+            border-bottom: 1px solid var(--border-light);
+        }
+        .room-info {
+            background: rgba(255,255,255,0.5);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 14px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            border: 1px solid rgba(255,255,255,0.6);
+        }
+        .room-code-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .room-code-value {
+            font-size: 22px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            color: var(--bubble-self);
+        }
+        .room-status {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+        .room-status.online { color: #34c759; }
+        .room-status.waiting { color: #ff9500; }
+        .room-status.offline { color: #ff3b30; }
+        .btn-copy {
+            background: rgba(0,0,0,0.05);
+            border: none;
+            border-radius: 10px;
+            padding: 8px 0;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s;
+            color: var(--text-primary);
+        }
+        .btn-copy:active { background: rgba(0,0,0,0.1); }
+
+        .sidebar-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .btn-action {
+            background: transparent;
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            padding: 10px 0;
+            font-size: 15px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s, border 0.2s;
+            color: var(--text-primary);
+            background: white;
+        }
+        .btn-action:active { background: rgba(0,0,0,0.04); }
+        .btn-action.btn-danger {
+            background: #ff3b30;
+            color: white;
+            border-color: #ff3b30;
+        }
+        .btn-action.btn-danger:active { background: #e0352b; }
+        .btn-action:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+        .btn-action.btn-danger:disabled {
+            background: #ffb3b0;
+            border-color: #ffb3b0;
+            color: #fff;
+            opacity: 0.6;
+        }
+
+        .sidebar-footer {
+            margin-top: auto;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 6px;
+            border-top: 1px solid var(--border-light);
+        }
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--bubble-self);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .user-avatar svg {
+            width: 20px;
+            height: 20px;
+            fill: white;
+        }
+        .user-name {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-primary);
+            white-space: nowrap;
+            text-overflow: ellipsis;
+            overflow: hidden;
+        }
+
+        #main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: var(--bg-chat);
+            min-width: 0;
+            height: 100%;
+        }
+
+        .main-header {
+            background: var(--nav-blur);
+            backdrop-filter: saturate(180%) blur(20px);
+            -webkit-backdrop-filter: saturate(180%) blur(20px);
+            border-bottom: 0.5px solid rgba(0,0,0,0.08);
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-shrink: 0;
+            min-height: 56px;
+            padding-left: 56px; /* 为固定按钮留出空间 */
+        }
+        .header-title {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .header-title span:first-child {
+            font-size: 17px;
+            font-weight: 600;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+            overflow: hidden;
+        }
+        .header-status {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        .header-actions {
+            display: flex;
+            gap: 8px;
+        }
+        .btn-icon {
+            background: none;
+            border: none;
+            color: var(--bubble-self);
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            padding: 6px 12px;
+            border-radius: 20px;
+            background: rgba(0,0,0,0.04);
+        }
+        .btn-icon:active { background: rgba(0,0,0,0.08); }
+
+        .messages-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px 16px 8px;
+            background: #f8f8fc;
+            background-image: radial-gradient(circle at 20% 30%, rgba(10,132,255,0.02) 0%, transparent 50%);
+        }
+        .messages-list {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .message {
+            max-width: 76%;
+            padding: 10px 16px;
+            border-radius: var(--radius-bubble);
+            word-wrap: break-word;
+            font-size: 16px;
+            line-height: 1.45;
+            position: relative;
+            clear: both;
+            animation: msg-pop 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+            margin-bottom: 2px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+        }
+        @keyframes msg-pop {
+            0% { opacity: 0; transform: scale(0.92) translateY(8px); }
+            100% { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        .message.self {
+            align-self: flex-end;
+            background: var(--bubble-self);
+            color: white;
+        }
+        .message.other {
+            align-self: flex-start;
+            background: var(--bubble-other);
+            color: var(--text-primary);
+        }
+        .message.system {
+            align-self: center;
+            background: rgba(0,0,0,0.04);
+            color: var(--text-secondary);
+            font-size: 13px;
+            padding: 6px 16px;
+            border-radius: 30px;
+            max-width: 90%;
+            backdrop-filter: blur(4px);
+            border: 0.5px solid rgba(0,0,0,0.02);
+        }
+
+        .input-area {
+            display: flex;
+            align-items: center;
+            padding: 10px 16px calc(10px + var(--safe-bottom));
+            background: rgba(248,248,252,0.92);
+            backdrop-filter: saturate(180%) blur(20px);
+            -webkit-backdrop-filter: saturate(180%) blur(20px);
+            border-top: 0.5px solid rgba(0,0,0,0.06);
+            gap: 8px;
+            flex-shrink: 0;
+        }
+        .input-area #msgInput {
+            flex: 1;
+            border: none;
+            border-radius: var(--radius-input);
+            padding: 10px 18px;
+            font-size: 16px;
+            background: rgba(0,0,0,0.04);
+            outline: none;
+            min-height: 40px;
+            max-height: 120px;
+            transition: background 0.2s, box-shadow 0.2s;
+        }
+        .input-area #msgInput:focus {
+            background: white;
+            box-shadow: 0 0 0 2px rgba(10,132,255,0.2);
+        }
+        .input-area #sendBtn {
+            background: var(--bubble-self);
+            border: none;
+            color: white;
+            border-radius: 50%;
+            width: 44px;
+            height: 44px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(10,132,255,0.25);
+            flex-shrink: 0;
+            padding: 0;
+        }
+        .input-area #sendBtn:active {
+            transform: scale(0.88);
+            opacity: 0.8;
+        }
+        .input-area #sendBtn:disabled {
+            opacity: 0.3;
+            transform: scale(1);
+            box-shadow: none;
+            cursor: default;
+        }
+        .input-area #sendBtn svg {
+            width: 22px;
+            height: 22px;
+            fill: currentColor;
+            display: block;
+        }
+
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.4);
+            z-index: 9;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+        }
+        .sidebar-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        /* 固定汉堡菜单按钮 - 仅移动端可见 */
+        .menu-toggle-fixed {
+            display: none;
+            position: fixed;
+            top: 12px;
+            left: 12px;
+            z-index: 999;
+            background: rgba(255,255,255,0.9);
+            border: none;
+            font-size: 28px;
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            cursor: pointer;
+            color: var(--text-primary);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.6);
+            justify-content: center;
+            align-items: center;
+            display: none;
+            line-height: 1;
+            padding: 0;
+        }
+        .menu-toggle-fixed:active {
+            background: rgba(0,0,0,0.05);
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                position: fixed;
+                top: 0;
+                left: 0;
+                height: 100%;
+                transform: translateX(0);
+                z-index: 20;
+                box-shadow: 2px 0 12px rgba(0,0,0,0.1);
+                border-right: none;
+                transition: transform 0.3s ease;
+            }
+            .sidebar.closed {
+                transform: translateX(-100%);
+            }
+            .sidebar-overlay {
+                display: block;
+            }
+            .main-header {
+                padding-left: 60px;
+            }
+            .menu-toggle-fixed {
+                display: flex;
+            }
+        }
+        @media (max-width: 440px) {
+            .message {
+                max-width: 85%;
+                font-size: 15px;
+                padding: 8px 12px;
+            }
+            .input-area #msgInput {
+                font-size: 15px;
+                padding: 8px 14px;
+            }
+            .input-area #sendBtn {
+                width: 40px;
+                height: 40px;
+            }
+            .input-area #sendBtn svg {
+                width: 20px;
+                height: 20px;
+            }
+        }
+
+        .messages-container::-webkit-scrollbar {
+            width: 3px;
+        }
+        .messages-container::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .messages-container::-webkit-scrollbar-thumb {
+            background: rgba(0,0,0,0.15);
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div id="sidebarOverlay" class="sidebar-overlay"></div>
+
+        <aside id="sidebar" class="sidebar">
+            <div class="sidebar-inner">
+                <div class="sidebar-header">MoYan</div>
+                <div class="room-info">
+                    <div class="room-code-label">房间码</div>
+                    <div class="room-code-value" id="sidebarRoomCode">未创建</div>
+                    <div class="room-status" id="sidebarStatus">未连接</div>
+                    <button class="btn-copy" id="sidebarCopyBtn">复制</button>
+                </div>
+                <div class="sidebar-actions">
+                    <button class="btn-action" id="sidebarCreateBtn">创建房间</button>
+                    <button class="btn-action" id="sidebarJoinBtn">加入房间</button>
+                    <button class="btn-action" id="sidebarWaitBtn" disabled>进入房间并等待</button>
+                    <button class="btn-action btn-danger" id="sidebarLeaveBtn" disabled>离开房间</button>
+                </div>
+                <div class="sidebar-footer">
+                    <div class="user-avatar">
+                        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                        </svg>
+                    </div>
+                    <span class="user-name" id="userIP">获取IP中...</span>
+                </div>
+            </div>
+        </aside>
+
+        <main id="main">
+            <header class="main-header">
+                <div class="header-title">
+                    <span id="headerRoomCode">未创建房间</span>
+                    <span class="header-status" id="headerStatus">未连接</span>
+                </div>
+                <div class="header-actions">
+                    <button class="btn-icon" id="headerCopyBtn">复制</button>
+                </div>
+            </header>
+
+            <div class="messages-container" id="messagesContainer">
+                <div id="messages" class="messages-list"></div>
+            </div>
+
+            <footer class="input-area">
+                <input type="text" id="msgInput" placeholder="信息" autocomplete="off">
+                <button id="sendBtn" disabled>
+                    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M2,21 L23,12 L2,3 L2,10 L16,12 L2,14 Z" />
+                    </svg>
+                </button>
+            </footer>
+        </main>
+
+        <!-- 独立固定菜单按钮 -->
+        <button id="menuToggleFixed" class="menu-toggle-fixed" aria-label="切换侧边栏">☰</button>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // 获取用户IP
+            fetch('https://api.ipify.org?format=json')
+                .then(res => res.json())
+                .then(data => {
+                    document.getElementById('userIP').textContent = data.ip || '未知IP';
+                })
+                .catch(() => {
+                    document.getElementById('userIP').textContent = '未知IP';
+                });
+
+            let peer = null;
+            let conn = null;
+            let roomId = '';
+            let isCreator = false;
+            let isPaired = false;
+            let isWaitingStarted = false;
+
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            const menuToggle = document.getElementById('menuToggleFixed');
+            const sidebarRoomCode = document.getElementById('sidebarRoomCode');
+            const sidebarStatus = document.getElementById('sidebarStatus');
+            const headerRoomCode = document.getElementById('headerRoomCode');
+            const headerStatus = document.getElementById('headerStatus');
+            const sidebarCopyBtn = document.getElementById('sidebarCopyBtn');
+            const headerCopyBtn = document.getElementById('headerCopyBtn');
+            const sidebarCreateBtn = document.getElementById('sidebarCreateBtn');
+            const sidebarJoinBtn = document.getElementById('sidebarJoinBtn');
+            const sidebarWaitBtn = document.getElementById('sidebarWaitBtn');
+            const sidebarLeaveBtn = document.getElementById('sidebarLeaveBtn');
+            const messagesDiv = document.getElementById('messages');
+            const msgInput = document.getElementById('msgInput');
+            const sendBtn = document.getElementById('sendBtn');
+
+            function isMobile() {
+                return window.innerWidth <= 768;
+            }
+
+            // 侧边栏切换
+            function toggleSidebar(e) {
+                if (e) e.preventDefault();
+                sidebar.classList.toggle('closed');
+                overlay.classList.toggle('active');
+            }
+
+            // 绑定固定按钮事件
+            menuToggle.addEventListener('click', toggleSidebar);
+            menuToggle.addEventListener('touchstart', function(e) {
+                e.preventDefault();
+                toggleSidebar(e);
+            }, { passive: false });
+
+            // 点击遮罩关闭
+            overlay.addEventListener('click', function() {
+                if (!sidebar.classList.contains('closed')) {
+                    sidebar.classList.add('closed');
+                    overlay.classList.remove('active');
+                }
+            });
+            overlay.addEventListener('touchstart', function(e) {
+                e.preventDefault();
+                if (!sidebar.classList.contains('closed')) {
+                    sidebar.classList.add('closed');
+                    overlay.classList.remove('active');
+                }
+            }, { passive: false });
+
+            // 点击主区域关闭（移动端）
+            document.getElementById('main').addEventListener('click', function() {
+                if (isMobile() && !sidebar.classList.contains('closed')) {
+                    sidebar.classList.add('closed');
+                    overlay.classList.remove('active');
+                }
+            });
+            document.getElementById('main').addEventListener('touchstart', function(e) {
+                if (isMobile() && !sidebar.classList.contains('closed')) {
+                    sidebar.classList.add('closed');
+                    overlay.classList.remove('active');
+                }
+            }, { passive: true });
+
+            // 窗口变化时处理
+            window.addEventListener('resize', function() {
+                if (!isMobile()) {
+                    sidebar.classList.remove('closed');
+                    overlay.classList.remove('active');
+                } else {
+                    // 移动端如果侧边栏被意外关闭，可以保持当前状态，但为了友好，我们默认展开
+                    // 但不要强制改变用户操作，所以不自动恢复
+                }
+            });
+
+            // 初始化：移动端默认展开，桌面端展开
+            if (isMobile()) {
+                sidebar.classList.remove('closed');
+                overlay.classList.add('active');
+            } else {
+                sidebar.classList.remove('closed');
+                overlay.classList.remove('active');
+            }
+
+            function generateRoomCode() {
+                const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+                let code = '';
+                for (let i = 0; i < 6; i++) {
+                    code += chars.charAt(Math.floor(Math.random() * chars.length));
+                }
+                return code;
+            }
+
+            function updateStatus(text, state) {
+                const statusEls = [sidebarStatus, headerStatus];
+                const classMap = { online: 'online', waiting: 'waiting', offline: 'offline' };
+                statusEls.forEach(el => {
+                    el.textContent = text;
+                    el.className = 'room-status';
+                    if (state && classMap[state]) el.classList.add(classMap[state]);
+                });
+                if (state === 'online') {
+                    sidebarLeaveBtn.disabled = false;
+                } else {
+                    sidebarLeaveBtn.disabled = true;
+                }
+            }
+
+            function appendMessage(who, text, side) {
+                const div = document.createElement('div');
+                div.className = 'message ' + side;
+                div.textContent = text;
+                messagesDiv.appendChild(div);
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            }
+
+            function startAsCreator() {
+                roomId = generateRoomCode();
+                sidebarRoomCode.textContent = roomId;
+                headerRoomCode.textContent = '房间码: ' + roomId;
+                sidebarCreateBtn.disabled = true;
+                sidebarJoinBtn.disabled = true;
+                isCreator = true;
+                isWaitingStarted = false;
+                updateStatus('未连接', 'offline');
+                sidebarWaitBtn.disabled = false;
+                sidebarWaitBtn.textContent = '进入房间并等待';
+                if (peer) { peer.destroy(); peer = null; }
+                if (isMobile()) {
+                    sidebar.classList.add('closed');
+                    overlay.classList.remove('active');
+                }
+            }
+
+            function startWaiting() {
+                if (!isCreator || isWaitingStarted) return;
+                isWaitingStarted = true;
+                sidebarWaitBtn.disabled = true;
+                sidebarWaitBtn.textContent = '等待中...';
+                updateStatus('等待加入...', 'waiting');
+                peer = new Peer(roomId, {
+                    debug: 2,
+                    config: { 'iceServers': [{ 'urls': 'stun:stun.l.google.com:19302' }] }
+                });
+                peer.on('open', () => {
+                    peer.on('connection', (incoming) => {
+                        conn = incoming;
+                        setupConnection(conn);
+                    });
+                });
+                peer.on('error', (err) => {
+                    console.warn('创建者错误:', err);
+                    updateStatus('创建失败', 'offline');
+                    alert('无法创建房间，请检查网络或更换热点');
+                    isWaitingStarted = false;
+                    sidebarWaitBtn.disabled = false;
+                    sidebarWaitBtn.textContent = '进入房间并等待';
+                });
+                if (isMobile()) {
+                    sidebar.classList.add('closed');
+                    overlay.classList.remove('active');
+                }
+            }
+
+            function startAsJoiner() {
+                const code = prompt('请输入6位房间码');
+                if (!code) return;
+                const clean = code.trim().toUpperCase();
+                if (clean.length !== 6) {
+                    alert('请输入6位房间码');
+                    return;
+                }
+                roomId = clean;
+                sidebarRoomCode.textContent = roomId;
+                headerRoomCode.textContent = '房间码: ' + roomId;
+                isCreator = false;
+                const myId = 'user-' + Math.random().toString(36).substr(2, 8);
+                peer = new Peer(myId, {
+                    debug: 2,
+                    config: { 'iceServers': [{ 'urls': 'stun:stun.l.google.com:19302' }] }
+                });
+                peer.on('open', () => {
+                    updateStatus('连接中...', 'waiting');
+                    const c = peer.connect(roomId);
+                    c.on('open', () => {
+                        conn = c;
+                        setupConnection(conn);
+                    });
+                    c.on('error', (e) => {
+                        updateStatus('连接失败', 'offline');
+                        alert('无法加入，请确认房间码正确或网络畅通');
+                        resetUI();
+                    });
+                });
+                peer.on('error', (err) => {
+                    console.warn('加入者错误:', err);
+                    updateStatus('连接失败', 'offline');
+                    alert('无法连接信令服务器，请检查网络');
+                    resetUI();
+                });
+                if (isMobile()) {
+                    sidebar.classList.add('closed');
+                    overlay.classList.remove('active');
+                }
+            }
+
+            function setupConnection(connection) {
+                if (isPaired) return;
+                conn = connection;
+                conn.on('data', (data) => {
+                    if (typeof data === 'string') {
+                        appendMessage('对方', data, 'other');
+                    }
+                });
+                conn.on('close', () => {
+                    updateStatus('已断开', 'offline');
+                    isPaired = false;
+                    sendBtn.disabled = true;
+                    appendMessage('系统', '对方已断开连接', 'system');
+                    sidebarLeaveBtn.disabled = true;
+                });
+                isPaired = true;
+                updateStatus('已配对', 'online');
+                sendBtn.disabled = false;
+                appendMessage('系统', '连接成功，开始聊天吧', 'system');
+                sidebarLeaveBtn.disabled = false;
+                if (isMobile()) {
+                    sidebar.classList.add('closed');
+                    overlay.classList.remove('active');
+                }
+            }
+
+            function sendText() {
+                const text = msgInput.value.trim();
+                if (!text || !conn || !conn.open) return;
+                conn.send(text);
+                appendMessage('我', text, 'self');
+                msgInput.value = '';
+                msgInput.focus();
+            }
+
+            function resetUI() {
+                sidebarRoomCode.textContent = '未创建';
+                headerRoomCode.textContent = '未创建房间';
+                updateStatus('未连接', 'offline');
+                sidebarCreateBtn.disabled = false;
+                sidebarJoinBtn.disabled = false;
+                sidebarWaitBtn.disabled = true;
+                sidebarWaitBtn.textContent = '进入房间并等待';
+                sidebarLeaveBtn.disabled = true;
+                isCreator = false;
+                isPaired = false;
+                isWaitingStarted = false;
+                if (peer) { peer.destroy(); peer = null; }
+                conn = null;
+                sendBtn.disabled = true;
+            }
+
+            function leaveRoom() {
+                if (conn) {
+                    conn.close();
+                    conn = null;
+                }
+                if (peer) {
+                    peer.destroy();
+                    peer = null;
+                }
+                resetUI();
+                messagesDiv.innerHTML = '';
+                if (isMobile()) {
+                    sidebar.classList.add('closed');
+                    overlay.classList.remove('active');
+                }
+            }
+
+            function copyRoomCode() {
+                const code = sidebarRoomCode.textContent;
+                if (!code || code === '未创建') return;
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(code).then(() => {
+                        alert('已复制房间码');
+                    }).catch(() => fallbackCopy(code));
+                } else {
+                    fallbackCopy(code);
+                }
+            }
+            function fallbackCopy(text) {
+                const input = document.createElement('input');
+                input.value = text;
+                document.body.appendChild(input);
+                input.select();
+                document.execCommand('copy');
+                document.body.removeChild(input);
+                alert('已复制房间码');
+            }
+
+            sidebarCreateBtn.addEventListener('click', startAsCreator);
+            sidebarJoinBtn.addEventListener('click', startAsJoiner);
+            sidebarWaitBtn.addEventListener('click', startWaiting);
+            sidebarLeaveBtn.addEventListener('click', leaveRoom);
+            sidebarCopyBtn.addEventListener('click', copyRoomCode);
+            headerCopyBtn.addEventListener('click', copyRoomCode);
+
+            sendBtn.addEventListener('click', sendText);
+            msgInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendText();
+                }
+            });
+
+            resetUI();
+        });
+    </script>
+</body>
+</html>
